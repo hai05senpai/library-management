@@ -9,6 +9,7 @@ import {
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
+import Books from "./pages/Books";
 
 import ProtectedRoute from "./components/ProtectedRoute";
 import { AuthProvider } from "./contexts/AuthContext";
@@ -60,6 +61,8 @@ function App() {
                                 element={<Dashboard />}
                             />
                         </Route>
+
+                        <Route path="/books" element={<Books />} />
 
                     </Route>
 

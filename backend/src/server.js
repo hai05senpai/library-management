@@ -4,6 +4,7 @@ require("dotenv").config();
 
 const { connectDB, sql } = require("./config/database");
 const authRoutes = require("./routes/auth.routes");
+const booksRoutes = require("./routes/books.routes");
 
 const app = express();
 
@@ -14,6 +15,7 @@ app.use(cors({
 app.use(express.json());
 
 app.use("/api/auth", authRoutes);
+app.use("/api/books", booksRoutes);
 
 let dbPool;
 

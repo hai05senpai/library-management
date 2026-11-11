@@ -1,0 +1,5 @@
+Vai trò	      Email	               Mật khẩu demo
+Sinh viên	  minhanh@lbms.com	   DemoPassword123!
+Giảng viên	  vanbinh@lbms.com	   DemoPassword123!
+Thủ thư	      librarian@lbms.com   DemoPassword123!
+Admin	      admin@lbms.com	   DemoPassword123!

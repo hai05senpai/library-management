@@ -327,11 +327,87 @@ const updateBookCopy = async (dbPool, copyId, status) => {
     return { type: "BORROWED" };
 };
 
+
+const deleteBook = async (dbPool, bookId) => {
+    const transaction = new sql.Transaction(dbPool);
+
+    try {
+        await transaction.begin(sql.ISOLATION_LEVEL.SERIALIZABLE);
+
+        // 1. Kiểm tra đầu sách có tồn tại không.
+        const bookResult = await transaction.request()
+            .input("bookId", sql.Int, bookId)
+            .query(`
+                SELECT book_id
+                FROM dbo.books WITH (UPDLOCK, HOLDLOCK)
+                WHERE book_id = @bookId;
+            `);
+
+        if (bookResult.recordset.length === 0) {
+            await transaction.rollback();
+            return { type: "NOT_FOUND" };
+        }
+
+        // 2. Kiểm tra đầu sách đã có bản sao chưa.
+        const copiesResult = await transaction.request()
+            .input("bookId", sql.Int, bookId)
+            .query(`
+                SELECT TOP 1 copy_id
+                FROM dbo.book_copies
+                WHERE book_id = @bookId;
+            `);
+
+        if (copiesResult.recordset.length > 0) {
+            await transaction.rollback();
+            return { type: "HAS_COPIES" };
+        }
+
+        // 3. Kiểm tra lịch sử giao dịch liên quan.
+        const transactionsResult = await transaction.request()
+            .input("bookId", sql.Int, bookId)
+            .query(`
+                SELECT TOP 1 bt.transaction_id
+                FROM dbo.borrow_transactions AS bt
+                INNER JOIN dbo.book_copies AS bc
+                    ON bt.copy_id = bc.copy_id
+                WHERE bc.book_id = @bookId;
+            `);
+
+        if (transactionsResult.recordset.length > 0) {
+            await transaction.rollback();
+            return { type: "HAS_TRANSACTIONS" };
+        }
+
+        // 4. Chỉ xóa khi không có bản sao hoặc lịch sử giao dịch.
+        await transaction.request()
+            .input("bookId", sql.Int, bookId)
+            .query(`
+                DELETE FROM dbo.books
+                WHERE book_id = @bookId;
+            `);
+
+        await transaction.commit();
+        return { type: "DELETED" };
+
+    } catch (error) {
+        if (transaction._aborted !== true) {
+            try {
+                await transaction.rollback();
+            } catch (rollbackError) {
+                // Transaction có thể đã được rollback hoặc kết thúc.
+            }
+        }
+
+        throw error;
+    }
+};
+
 module.exports = {
     getBooks,
     getBookById,
     createBook,
     updateBook,
+    deleteBook,
     getBookCopies,
     createBookCopy,
     updateBookCopy

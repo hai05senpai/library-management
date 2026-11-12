@@ -38,12 +38,12 @@ router.put(
     updateBook
 );
 
-// router.delete(
-//     "/:id",
-//     authenticateToken,
-//     authorizeRoles("ADMIN", "LIBRARIAN"),
-//     deleteBook
-// );
+router.delete(
+    "/:id",
+    authenticateToken,
+    authorizeRoles("ADMIN", "LIBRARIAN"),
+    deleteBook
+);
 
 router.post(
     "/:id/copies",

@@ -3,6 +3,7 @@ const {
     getBookById: getBookByIdService,
     createBook: createBookService,
     updateBook: updateBookService,
+    deleteBook: deleteBookService,
     getBookCopies: getBookCopiesService,
     createBookCopy: createBookCopyService,
     updateBookCopy: updateBookCopyService
@@ -434,12 +435,64 @@ const updateBook = async (req, res) => {
     }
 };
 
+
+const deleteBook = async (req, res) => {
+    const bookId = Number(req.params.id);
+
+    if (!Number.isInteger(bookId) || bookId <= 0) {
+        return res.status(400).json({
+            success: false,
+            message: "Book ID must be a positive integer."
+        });
+    }
+
+    try {
+        const result = await deleteBookService(req.app.locals.dbPool, bookId);
+
+        if (result.type === "NOT_FOUND") {
+            return res.status(404).json({
+                success: false,
+                message: "Book not found."
+            });
+        }
+
+        if (result.type === "HAS_COPIES") {
+            return res.status(409).json({
+                success: false,
+                message: "Cannot delete this book because it has book copies."
+            });
+        }
+
+        if (result.type === "HAS_TRANSACTIONS") {
+            return res.status(409).json({
+                success: false,
+                message: "Cannot delete this book because it has transaction history."
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "Book deleted successfully."
+        });
+
+    } catch (error) {
+        console.error("Delete book error:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Unable to delete book. Please try again."
+        });
+    }
+};
+
+
 module.exports = {
     getBooks,
     getBookById,
-    getBookCopies,
     createBook,
     updateBook,
+    deleteBook,
+    getBookCopies,
     createBookCopy,
     updateBookCopy
 };

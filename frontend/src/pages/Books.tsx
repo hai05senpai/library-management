@@ -5,7 +5,7 @@ import {
     BookOpen,
     ChevronLeft,
     ChevronRight,
-    // Eye,
+    Trash2,
     X,
     Pencil
 } from "lucide-react";
@@ -68,6 +68,11 @@ interface CreateBookForm {
     description: string;
 }
 
+interface ToastMessage {
+    type: "success" | "error";
+    message: string;
+}
+
 function Books() {
     const { account } = useAuth();
 
@@ -103,6 +108,11 @@ function Books() {
     const [createCopySuccess, setCreateCopySuccess] = useState("");
 
     const [editingBookId, setEditingBookId] = useState<number | null>(null);
+
+    const [deletingBookId, setDeletingBookId] = useState<number | null>(null);
+    const [deleteBookError, setDeleteBookError] = useState("");
+
+    const [toast, setToast] = useState<ToastMessage | null>(null);
 
     const [formData, setFormData] = useState<CreateBookForm>({
         isbn: "",
@@ -165,6 +175,90 @@ function Books() {
         }
     };
 
+    const showToast = (
+        type: "success" | "error",
+        message: string
+    ) => {
+        setToast({ type, message });
+    };
+
+    const handleDeleteBook = async (book: Book) => {
+        const confirmed = window.confirm(
+            `Bạn có chắc chắn muốn xóa đầu sách "${book.title}" không?\n\n` +
+            "Thao tác này không thể hoàn tác."
+        );
+
+        if (!confirmed) return;
+
+        try {
+            setDeletingBookId(book.book_id);
+            setDeleteBookError("");
+
+            await api.delete(`/books/${book.book_id}`);
+            showToast("success", `Đã xóa đầu sách "${book.title}" thành công.`);
+
+            // Đóng modal chi tiết nếu đang xem đầu sách vừa xóa.
+            if (selectedBook?.book_id === book.book_id) {
+                setSelectedBook(null);
+                setBookCopies([]);
+            }
+
+            // Làm mới danh sách đầu sách.
+            setRefreshKey((key) => key + 1);
+
+        } catch (err: unknown) {
+            console.error("Delete book error:", err);
+
+            if (
+                typeof err === "object" &&
+                err !== null &&
+                "response" in err
+            ) {
+                const axiosError = err as {
+                    response?: {
+                        status?: number;
+                        data?: {
+                            message?: string;
+                        };
+                    };
+                };
+
+                const status = axiosError.response?.status;
+                const message = axiosError.response?.data?.message;
+
+                if (status === 404) {
+                    showToast("error", "Không tìm thấy đầu sách cần xóa.");
+                } else if (status === 409) {
+                    if (message?.includes("book copies")) {
+                        showToast(
+                            "error",
+                            "Không thể xóa đầu sách vì đã có bản sao sách."
+                        );
+                    } else if (message?.includes("transaction history")) {
+                        showToast(
+                            "error",
+                            "Không thể xóa đầu sách vì đã có lịch sử giao dịch."
+                        );
+                    } else {
+                        showToast(
+                            "error",
+                            "Không thể xóa đầu sách do vi phạm ràng buộc dữ liệu."
+                        );
+                    }
+                } else {
+                    showToast("error", "Không thể xóa đầu sách. Vui lòng thử lại.");
+                }
+            } else {
+                setDeleteBookError(
+                    "Không thể kết nối đến máy chủ. Vui lòng thử lại."
+                );
+            }
+        } finally {
+            setDeletingBookId(null);
+        }
+    };
+
+
     const handleCreateBookCopy = async (
         event: FormEvent<HTMLFormElement>
     ) => {
@@ -187,6 +281,8 @@ function Books() {
             await api.post(`/books/${selectedBook.book_id}/copies`, {
                 copy_barcode: barcode
             });
+
+            showToast("success", "Thêm bản sao sách thành công.");
 
             setCopyBarcode("");
             setCreateCopySuccess("Thêm bản sao thành công.");
@@ -219,11 +315,14 @@ function Books() {
 
                 if (axiosError.response?.status === 409) {
                     setCreateCopyError("Mã bản sao đã tồn tại.");
+                    showToast("error", "Mã bản sao đã tồn tại.");
                 } else {
                     setCreateCopyError("Không thể thêm bản sao. Vui lòng thử lại.");
+                    showToast("error", "Không thể thêm bản sao. Vui lòng thử lại.");
                 }
             } else {
                 setCreateCopyError("Không thể thêm bản sao. Vui lòng thử lại.");
+                showToast("error", "Không thể thêm bản sao. Vui lòng thử lại.");
             }
         } finally {
             setIsCreatingCopy(false);
@@ -241,6 +340,8 @@ function Books() {
                 status
             });
 
+            showToast("success", "Cập nhật trạng thái bản sao thành công.");
+
             // Tải lại danh sách bản sao
             if (selectedBook) {
                 await fetchBookCopies(selectedBook.book_id);
@@ -257,9 +358,11 @@ function Books() {
             setRefreshKey((key) => key + 1);
         } catch (err: unknown) {
             console.error("Update book copy status error:", err);
-            setCopiesError(
-                "Không thể cập nhật trạng thái bản sao. Vui lòng thử lại."
-            );
+
+            const message = "Không thể cập nhật trạng thái bản sao. Vui lòng thử lại.";
+
+            setCopiesError(message);
+            showToast("error", message);
         } finally {
             setIsUpdatingCopyId(null);
         }
@@ -353,8 +456,10 @@ function Books() {
 
             if (editingBookId !== null) {
                 await api.put(`/books/${editingBookId}`, payload);
+                showToast("success", "Cập nhật đầu sách thành công.");
             } else {
                 await api.post("/books", payload);
+                showToast("success", "Thêm đầu sách thành công.");
             }
 
             setFormData({
@@ -375,7 +480,12 @@ function Books() {
             setEditingBookId(null);
         } catch (err: unknown) {
             console.error("Create book error:", err);
-            setFormError("Không thể thêm sách. Vui lòng kiểm tra dữ liệu và thử lại.");
+            const message = editingBookId !== null
+                ? "Không thể cập nhật đầu sách. Vui lòng thử lại."
+                : "Không thể thêm đầu sách. Vui lòng thử lại.";
+
+            setFormError(message);
+            showToast("error", message);
         } finally {
             setIsCreating(false);
         }
@@ -404,6 +514,22 @@ function Books() {
 
     return (
         <div className="books-page">
+            {toast && (
+                <div
+                    className={`books-toast books-toast-${toast.type}`}
+                    role="alert"
+                >
+                    <span>{toast.message}</span>
+
+                    <button
+                        type="button"
+                        onClick={() => setToast(null)}
+                        aria-label="Đóng thông báo"
+                    >
+                        <X size={16} />
+                    </button>
+                </div>
+            )}
             <header className="books-header">
                 <div>
                     <Link to={dashboardPath} className="books-back-link">
@@ -453,6 +579,19 @@ function Books() {
                     Tổng cộng: <strong>{totalBooks}</strong> đầu sách
                 </span>
             </section>
+            
+            {deleteBookError && (
+                <div className="books-delete-error">
+                    <span>{deleteBookError}</span>
+                    <button
+                        type="button"
+                        onClick={() => setDeleteBookError("")}
+                        aria-label="Đóng thông báo"
+                    >
+                        <X size={16} />
+                    </button>
+                </div>
+            )}
 
             <section className="books-table-container">
                 {loading ? (
@@ -513,6 +652,18 @@ function Books() {
                                                     title="Chỉnh sửa sách"
                                                 >
                                                     <Pencil size={16} />
+                                                </button>
+                                            )}
+                                            {canManageBooks && (
+                                                <button
+                                                    type="button"
+                                                    className="books-delete-button"
+                                                    onClick={() => handleDeleteBook(book)}
+                                                    disabled={deletingBookId === book.book_id}
+                                                    title="Xóa đầu sách"
+                                                    aria-label={`Xóa đầu sách ${book.title}`}
+                                                >
+                                                    <Trash2 size={17} />
                                                 </button>
                                             )}
                                         </td>

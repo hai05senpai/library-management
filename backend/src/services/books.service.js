@@ -74,6 +74,48 @@ const getBooks = async (dbPool, { search, page, limit }) => {
     };
 };
 
+const getBookById = async (dbPool, bookId) => {
+    const request = dbPool.request();
+
+    request.input("bookId", sql.Int, bookId);
+
+    const result = await request.query(`
+        SELECT
+            b.book_id,
+            b.isbn,
+            b.title,
+            b.author,
+            b.category,
+            b.publisher,
+            b.published_year,
+            b.description,
+            b.created_at,
+            COUNT(bc.copy_id) AS total_copies,
+            SUM(
+                CASE
+                    WHEN bc.status = 'AVAILABLE' THEN 1
+                    ELSE 0
+                END
+            ) AS available_copies
+        FROM dbo.books b
+        LEFT JOIN dbo.book_copies bc
+            ON b.book_id = bc.book_id
+        WHERE b.book_id = @bookId
+        GROUP BY
+            b.book_id,
+            b.isbn,
+            b.title,
+            b.author,
+            b.category,
+            b.publisher,
+            b.published_year,
+            b.description,
+            b.created_at;
+    `);
+
+    return result.recordset[0] || null;
+};
+
 const createBook = async (dbPool, bookData) => {
     const {
         isbn,
@@ -131,5 +173,6 @@ const createBook = async (dbPool, bookData) => {
 
 module.exports = {
     getBooks,
+    getBookById,
     createBook
 };

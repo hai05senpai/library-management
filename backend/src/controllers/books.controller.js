@@ -1,6 +1,6 @@
-
 const {
     getBooks: getBooksService,
+    getBookById: getBookByIdService,
     createBook: createBookService
 } = require("../services/books.service");
 
@@ -46,6 +46,42 @@ const getBooks = async (req, res) => {
         return res.status(500).json({
             success: false,
             message: "Failed to retrieve books."
+        });
+    }
+};
+
+const getBookById = async (req, res) => {
+    try {
+        const dbPool = req.app.locals.dbPool;
+        const bookId = Number(req.params.id);
+
+        if (!Number.isInteger(bookId) || bookId < 1) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid book ID."
+            });
+        }
+
+        const book = await getBookByIdService(dbPool, bookId);
+
+        if (!book) {
+            return res.status(404).json({
+                success: false,
+                message: "Book not found."
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "Book retrieved successfully.",
+            data: book
+        });
+    } catch (error) {
+        console.error("Get book detail error:", error.message);
+
+        return res.status(500).json({
+            success: false,
+            message: "Failed to retrieve book."
         });
     }
 };
@@ -130,5 +166,6 @@ const createBook = async (req, res) => {
 
 module.exports = {
     getBooks,
+    getBookById,
     createBook
 };

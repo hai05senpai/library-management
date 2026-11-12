@@ -1,7 +1,14 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
-import { Search, BookOpen, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+    Search,
+    BookOpen,
+    ChevronLeft,
+    ChevronRight,
+    Eye,
+    X
+} from "lucide-react";
 import api from "../services/api";
 import { useAuth } from "../contexts/AuthContext";
 
@@ -19,6 +26,11 @@ interface Book {
     available_copies: number;
 }
 
+interface BookDetailResponse {
+    success: boolean;
+    message: string;
+    data: Book;
+}
 interface BooksResponse {
     success: boolean;
     message: string;
@@ -61,6 +73,11 @@ function Books() {
     const [isCreating, setIsCreating] = useState(false);
     const [formError, setFormError] = useState("");
 
+    const [selectedBook, setSelectedBook] = useState<Book | null>(null);
+    const [showDetailModal, setShowDetailModal] = useState(false);
+    const [isLoadingDetail, setIsLoadingDetail] = useState(false);
+    const [detailError, setDetailError] = useState("");
+
     const [formData, setFormData] = useState<CreateBookForm>({
         isbn: "",
         title: "",
@@ -102,6 +119,26 @@ function Books() {
 
         fetchBooks();
     }, [searchTerm, currentPage, refreshKey]);
+
+    const handleViewBook = async (bookId: number) => {
+        try {
+            setShowDetailModal(true);
+            setIsLoadingDetail(true);
+            setDetailError("");
+            setSelectedBook(null);
+
+            const response = await api.get<BookDetailResponse>(
+                `/books/${bookId}`
+            );
+
+            setSelectedBook(response.data.data);
+        } catch (err: unknown) {
+            console.error("Get book detail error:", err);
+            setDetailError("Không thể tải thông tin sách. Vui lòng thử lại.");
+        } finally {
+            setIsLoadingDetail(false);
+        }
+    };
 
     const handleCreateBook = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -249,7 +286,13 @@ function Books() {
                                     <tr key={book.book_id}>
                                         <td>{book.isbn || "—"}</td>
                                         <td className="books-title-cell">
-                                            {book.title}
+                                            <button
+                                                type="button"
+                                                className="books-title-button"
+                                                onClick={() => handleViewBook(book.book_id)}
+                                            >
+                                                {book.title}
+                                            </button>
                                         </td>
                                         <td>{book.author}</td>
                                         <td>{book.category || "—"}</td>
@@ -294,6 +337,109 @@ function Books() {
                     </button>
                 </div>
             </footer>
+            
+            {showDetailModal && (
+                <div
+                    className="books-modal-overlay"
+                    onClick={() => setShowDetailModal(false)}
+                >
+                    <div
+                        className="books-modal books-detail-modal"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="book-detail-title"
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <div className="books-modal-header">
+                            <div>
+                                <h2 id="book-detail-title">Chi tiết sách</h2>
+                                <p>Thông tin chi tiết về đầu sách trong thư viện.</p>
+                            </div>
+
+                            <button
+                                type="button"
+                                className="books-modal-close"
+                                onClick={() => setShowDetailModal(false)}
+                                aria-label="Đóng"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        {isLoadingDetail ? (
+                            <div className="books-state">
+                                Đang tải thông tin sách...
+                            </div>
+                        ) : detailError ? (
+                            <div className="books-state books-error">
+                                {detailError}
+                            </div>
+                        ) : selectedBook ? (
+                            <div className="books-detail-content">
+                                <div className="books-detail-title">
+                                    <div className="books-detail-icon">
+                                        <BookOpen size={28} />
+                                    </div>
+
+                                    <div>
+                                        <h3>{selectedBook.title}</h3>
+                                        <p>{selectedBook.author}</p>
+                                    </div>
+                                </div>
+
+                                <div className="books-detail-grid">
+                                    <div className="books-detail-item">
+                                        <span>ISBN</span>
+                                        <strong>{selectedBook.isbn || "—"}</strong>
+                                    </div>
+
+                                    <div className="books-detail-item">
+                                        <span>Thể loại</span>
+                                        <strong>{selectedBook.category || "—"}</strong>
+                                    </div>
+
+                                    <div className="books-detail-item">
+                                        <span>Nhà xuất bản</span>
+                                        <strong>{selectedBook.publisher || "—"}</strong>
+                                    </div>
+
+                                    <div className="books-detail-item">
+                                        <span>Năm xuất bản</span>
+                                        <strong>{selectedBook.published_year || "—"}</strong>
+                                    </div>
+
+                                    <div className="books-detail-item">
+                                        <span>Tổng số bản sao</span>
+                                        <strong>{selectedBook.total_copies ?? 0}</strong>
+                                    </div>
+
+                                    <div className="books-detail-item">
+                                        <span>Số bản có thể mượn</span>
+                                        <strong className="books-available">
+                                            {selectedBook.available_copies ?? 0}
+                                        </strong>
+                                    </div>
+                                </div>
+
+                                <div className="books-detail-description">
+                                    <span>Mô tả</span>
+                                    <p>
+                                        {selectedBook.description || "Chưa có mô tả cho sách này."}
+                                    </p>
+                                </div>
+
+                                <div className="books-detail-footer">
+                                    <span>
+                                        Ngày tạo:{" "}
+                                        {new Date(selectedBook.created_at).toLocaleDateString("vi-VN")}
+                                    </span>
+                                </div>
+                            </div>
+                        ) : null}
+                    </div>
+                </div>
+            )}
+            
             {showCreateModal && (
                 <div className="books-modal-overlay">
                     <div

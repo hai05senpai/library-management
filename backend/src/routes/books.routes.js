@@ -20,7 +20,7 @@ const {
 
 // Tất cả người dùng đã đăng nhập được xem sách.
 router.get("/", authenticateToken, getBooks);
-// router.get("/:id", authenticateToken, getBookById);
+router.get("/:id", authenticateToken, getBookById);
 // router.get("/:id/copies", authenticateToken, getBookCopies);
 
 // Chỉ Admin và Thủ thư được quản lý sách.

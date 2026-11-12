@@ -10,6 +10,7 @@ import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Books from "./pages/Books";
+import BorrowTransactions from "./pages/BorrowTransactions";
 
 import ProtectedRoute from "./components/ProtectedRoute";
 import { AuthProvider } from "./contexts/AuthContext";
@@ -63,6 +64,11 @@ function App() {
                         </Route>
 
                         <Route path="/books" element={<Books />} />
+
+                        <Route
+                            path="/borrow-transactions"
+                            element={<BorrowTransactions />}
+                        />
 
                     </Route>
 

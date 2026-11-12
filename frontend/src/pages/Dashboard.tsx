@@ -64,10 +64,13 @@ function Dashboard() {
                         </div>
                     )}
 
-                    <div className="dashboard-nav-item disabled">
+                    <Link
+                        to="/borrow-transactions"
+                        className="dashboard-nav-item"
+                    >
                         <ClipboardList size={19} />
                         <span>Quản lý mượn trả</span>
-                    </div>
+                    </Link>
                 </nav>
 
                 <div className="dashboard-sidebar-bottom">
@@ -178,21 +181,26 @@ function Dashboard() {
                             </span>
                         </Link>
 
-                        <div className="dashboard-feature-card unavailable">
+                        <Link
+                            to="/borrow-transactions"
+                            className="dashboard-feature-card"
+                        >
                             <div className="dashboard-feature-icon purple">
                                 <ClipboardList size={25} />
                             </div>
 
                             <h3>Quản lý mượn trả</h3>
+
                             <p>
                                 Theo dõi các giao dịch mượn, trả và tình trạng
                                 tài liệu.
                             </p>
 
-                            <span className="dashboard-feature-coming">
-                                Sắp triển khai
+                            <span className="dashboard-feature-link">
+                                Truy cập chức năng
+                                <ArrowRight size={17} />
                             </span>
-                        </div>
+                        </Link>
 
                         {isManager && (
                             <div className="dashboard-feature-card unavailable">

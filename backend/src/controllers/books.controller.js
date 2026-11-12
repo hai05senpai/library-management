@@ -1,7 +1,8 @@
 const {
     getBooks: getBooksService,
     getBookById: getBookByIdService,
-    createBook: createBookService
+    createBook: createBookService,
+    updateBook: updateBookService
 } = require("../services/books.service");
 
 const getBooks = async (req, res) => {
@@ -164,8 +165,102 @@ const createBook = async (req, res) => {
     }
 };
 
+const updateBook = async (req, res) => {
+    try {
+        const dbPool = req.app.locals.dbPool;
+        const bookId = Number(req.params.id);
+
+        if (!Number.isInteger(bookId) || bookId < 1) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid book ID."
+            });
+        }
+
+        const {
+            isbn,
+            title,
+            author,
+            category,
+            publisher,
+            published_year,
+            description
+        } = req.body;
+
+        if (
+            typeof title !== "string" ||
+            !title.trim() ||
+            typeof author !== "string" ||
+            !author.trim()
+        ) {
+            return res.status(400).json({
+                success: false,
+                message: "Title and author are required."
+            });
+        }
+
+        if (
+            (isbn != null && typeof isbn !== "string") ||
+            (category != null && typeof category !== "string") ||
+            (publisher != null && typeof publisher !== "string") ||
+            (description != null && typeof description !== "string")
+        ) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid book field types."
+            });
+        }
+
+        if (
+            published_year !== undefined &&
+            published_year !== null &&
+            (
+                !Number.isInteger(published_year) ||
+                published_year < 1 ||
+                published_year > 9999
+            )
+        ) {
+            return res.status(400).json({
+                success: false,
+                message: "Published year must be a valid integer."
+            });
+        }
+
+        const book = await updateBookService(dbPool, bookId, {
+            isbn: isbn?.trim() || null,
+            title: title.trim(),
+            author: author.trim(),
+            category: category?.trim() || null,
+            publisher: publisher?.trim() || null,
+            published_year: published_year ?? null,
+            description: description?.trim() || null
+        });
+
+        if (!book) {
+            return res.status(404).json({
+                success: false,
+                message: "Book not found."
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "Book updated successfully.",
+            data: book
+        });
+    } catch (error) {
+        console.error("Update book error:", error.message);
+
+        return res.status(500).json({
+            success: false,
+            message: "Failed to update book."
+        });
+    }
+};
+
 module.exports = {
     getBooks,
     getBookById,
-    createBook
+    createBook,
+    updateBook
 };

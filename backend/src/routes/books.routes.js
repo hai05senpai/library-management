@@ -31,12 +31,12 @@ router.post(
     createBook
 );
 
-// router.put(
-//     "/:id",
-//     authenticateToken,
-//     authorizeRoles("ADMIN", "LIBRARIAN"),
-//     updateBook
-// );
+router.put(
+    "/:id",
+    authenticateToken,
+    authorizeRoles("ADMIN", "LIBRARIAN"),
+    updateBook
+);
 
 // router.delete(
 //     "/:id",

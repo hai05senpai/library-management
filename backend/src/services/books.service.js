@@ -171,8 +171,57 @@ const createBook = async (dbPool, bookData) => {
     return result.recordset[0];
 };
 
+const updateBook = async (dbPool, bookId, bookData) => {
+    const {
+        isbn,
+        title,
+        author,
+        category,
+        publisher,
+        published_year,
+        description
+    } = bookData;
+
+    const request = dbPool.request();
+
+    request.input("bookId", sql.Int, bookId);
+    request.input("isbn", sql.VarChar(20), isbn || null);
+    request.input("title", sql.NVarChar(255), title);
+    request.input("author", sql.NVarChar(255), author);
+    request.input("category", sql.NVarChar(100), category || null);
+    request.input("publisher", sql.NVarChar(150), publisher || null);
+    request.input("published_year", sql.Int, published_year ?? null);
+    request.input("description", sql.NVarChar(sql.MAX), description || null);
+
+    const result = await request.query(`
+        UPDATE dbo.books
+        SET
+            isbn = @isbn,
+            title = @title,
+            author = @author,
+            category = @category,
+            publisher = @publisher,
+            published_year = @published_year,
+            description = @description
+        OUTPUT
+            INSERTED.book_id,
+            INSERTED.isbn,
+            INSERTED.title,
+            INSERTED.author,
+            INSERTED.category,
+            INSERTED.publisher,
+            INSERTED.published_year,
+            INSERTED.description,
+            INSERTED.created_at
+        WHERE book_id = @bookId;
+    `);
+
+    return result.recordset[0] || null;
+};
+
 module.exports = {
     getBooks,
     getBookById,
-    createBook
+    createBook,
+    updateBook
 };

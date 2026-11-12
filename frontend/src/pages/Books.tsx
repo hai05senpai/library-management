@@ -1,4 +1,3 @@
-
 import { useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -6,8 +5,9 @@ import {
     BookOpen,
     ChevronLeft,
     ChevronRight,
-    Eye,
-    X
+    // Eye,
+    X,
+    Pencil
 } from "lucide-react";
 import api from "../services/api";
 import { useAuth } from "../contexts/AuthContext";
@@ -78,6 +78,8 @@ function Books() {
     const [isLoadingDetail, setIsLoadingDetail] = useState(false);
     const [detailError, setDetailError] = useState("");
 
+    const [editingBookId, setEditingBookId] = useState<number | null>(null);
+
     const [formData, setFormData] = useState<CreateBookForm>({
         isbn: "",
         title: "",
@@ -140,6 +142,39 @@ function Books() {
         }
     };
 
+    const handleEditBook = async (bookId: number) => {
+        try {
+            setIsLoadingDetail(true);
+            setDetailError("");
+            setSelectedBook(null);
+
+            const response = await api.get<BookDetailResponse>(
+                `/books/${bookId}`
+            );
+
+            const book = response.data.data;
+
+            setFormData({
+                isbn: book.isbn || "",
+                title: book.title,
+                author: book.author,
+                category: book.category || "",
+                publisher: book.publisher || "",
+                published_year: book.published_year?.toString() || "",
+                description: book.description || ""
+            });
+
+            setEditingBookId(bookId);
+            setFormError("");
+            setShowCreateModal(true);
+        } catch (err: unknown) {
+            console.error("Get book for editing error:", err);
+            setError("Không thể tải thông tin sách để chỉnh sửa.");
+        } finally {
+            setIsLoadingDetail(false);
+        }
+    };
+
     const handleCreateBook = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
 
@@ -159,7 +194,7 @@ function Books() {
             setIsCreating(true);
             setFormError("");
 
-            await api.post("/books", {
+            const payload = {
                 isbn: formData.isbn.trim() || null,
                 title: formData.title.trim(),
                 author: formData.author.trim(),
@@ -167,7 +202,13 @@ function Books() {
                 publisher: formData.publisher.trim() || null,
                 published_year: year ? Number(year) : null,
                 description: formData.description.trim() || null
-            });
+            };
+
+            if (editingBookId !== null) {
+                await api.put(`/books/${editingBookId}`, payload);
+            } else {
+                await api.post("/books", payload);
+            }
 
             setFormData({
                 isbn: "",
@@ -184,6 +225,7 @@ function Books() {
             setSearchInput("");
             setSearchTerm("");
             setRefreshKey((key) => key + 1);
+            setEditingBookId(null);
         } catch (err: unknown) {
             console.error("Create book error:", err);
             setFormError("Không thể thêm sách. Vui lòng kiểm tra dữ liệu và thử lại.");
@@ -229,7 +271,17 @@ function Books() {
                         className="books-add-button"
                         type="button"
                         onClick={() => {
+                            setEditingBookId(null);
                             setFormError("");
+                            setFormData({
+                                isbn: "",
+                                title: "",
+                                author: "",
+                                category: "",
+                                publisher: "",
+                                published_year: "",
+                                description: ""
+                            });
                             setShowCreateModal(true);
                         }}
                     >
@@ -278,6 +330,7 @@ function Books() {
                                     <th>Năm XB</th>
                                     <th>Tổng bản sao</th>
                                     <th>Có thể mượn</th>
+                                    <th>Thao tác</th>
                                 </tr>
                             </thead>
 
@@ -303,6 +356,18 @@ function Books() {
                                             <span className="books-available">
                                                 {book.available_copies ?? 0}
                                             </span>
+                                        </td>
+                                        <td>
+                                            {canManageBooks && (
+                                                <button
+                                                    type="button"
+                                                    className="books-action-button"
+                                                    onClick={() => handleEditBook(book.book_id)}
+                                                    title="Chỉnh sửa sách"
+                                                >
+                                                    <Pencil size={16} />
+                                                </button>
+                                            )}
                                         </td>
                                     </tr>
                                 ))}
@@ -450,7 +515,9 @@ function Books() {
                     >
                         <div className="books-modal-header">
                             <div>
-                                <h2 id="create-book-title">Thêm đầu sách</h2>
+                                <h2 id="create-book-title">
+                                    {editingBookId !== null ? "Chỉnh sửa đầu sách" : "Thêm đầu sách"}
+                                </h2>
                                 <p>Nhập thông tin tài liệu mới vào thư viện.</p>
                             </div>
 
@@ -607,7 +674,11 @@ function Books() {
                                     className="books-submit-button"
                                     disabled={isCreating}
                                 >
-                                    {isCreating ? "Đang lưu..." : "Lưu đầu sách"}
+                                    {isCreating
+                                        ? "Đang lưu..."
+                                        : editingBookId !== null
+                                            ? "Cập nhật sách"
+                                            : "Lưu đầu sách"}
                                 </button>
                             </div>
                         </form>

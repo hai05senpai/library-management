@@ -116,6 +116,26 @@ const getBookById = async (dbPool, bookId) => {
     return result.recordset[0] || null;
 };
 
+const getBookCopies = async (dbPool, bookId) => {
+    const request = dbPool.request();
+
+    request.input("bookId", sql.Int, bookId);
+
+    const result = await request.query(`
+        SELECT
+            copy_id,
+            book_id,
+            copy_barcode,
+            status,
+            created_at
+        FROM dbo.book_copies
+        WHERE book_id = @bookId
+        ORDER BY copy_id DESC;
+    `);
+
+    return result.recordset;
+};
+
 const createBook = async (dbPool, bookData) => {
     const {
         isbn,
@@ -219,9 +239,100 @@ const updateBook = async (dbPool, bookId, bookData) => {
     return result.recordset[0] || null;
 };
 
+const createBookCopy = async (dbPool, bookId, copyBarcode) => {
+    const request = dbPool.request();
+
+    request.input("bookId", sql.Int, bookId);
+    request.input("copyBarcode", sql.VarChar(50), copyBarcode);
+
+    const result = await request.query(`
+        INSERT INTO dbo.book_copies (
+            book_id,
+            copy_barcode,
+            status
+        )
+        OUTPUT
+            INSERTED.copy_id,
+            INSERTED.book_id,
+            INSERTED.copy_barcode,
+            INSERTED.status,
+            INSERTED.created_at
+        VALUES (
+            @bookId,
+            @copyBarcode,
+            'AVAILABLE'
+        );
+    `);
+
+    return result.recordset[0];
+};
+
+const updateBookCopy = async (dbPool, copyId, status) => {
+    const request = dbPool.request();
+
+    request.input("copyId", sql.Int, copyId);
+    request.input("status", sql.VarChar(20), status);
+
+    const result = await request.query(`
+        UPDATE bc
+        SET status = @status
+        OUTPUT
+            INSERTED.copy_id,
+            INSERTED.book_id,
+            INSERTED.copy_barcode,
+            INSERTED.status,
+            INSERTED.created_at
+        FROM dbo.book_copies AS bc
+        WHERE bc.copy_id = @copyId
+          AND bc.status <> 'BORROWED'
+          AND NOT EXISTS (
+              SELECT 1
+              FROM dbo.borrow_transactions AS bt
+              WHERE bt.copy_id = bc.copy_id
+                AND bt.status IN ('BORROWED', 'OVERDUE')
+          );
+    `);
+
+    if (result.recordset.length > 0) {
+        return {
+            type: "UPDATED",
+            copy: result.recordset[0]
+        };
+    }
+
+    const checkResult = await dbPool.request()
+        .input("copyId", sql.Int, copyId)
+        .query(`
+            SELECT
+                copy_id,
+                status,
+                CASE
+                    WHEN EXISTS (
+                        SELECT 1
+                        FROM dbo.borrow_transactions AS bt
+                        WHERE bt.copy_id = bc.copy_id
+                          AND bt.status IN ('BORROWED', 'OVERDUE')
+                    )
+                    THEN 1
+                    ELSE 0
+                END AS has_active_loan
+            FROM dbo.book_copies AS bc
+            WHERE copy_id = @copyId;
+        `);
+
+    if (checkResult.recordset.length === 0) {
+        return { type: "NOT_FOUND" };
+    }
+
+    return { type: "BORROWED" };
+};
+
 module.exports = {
     getBooks,
     getBookById,
     createBook,
-    updateBook
+    updateBook,
+    getBookCopies,
+    createBookCopy,
+    updateBookCopy
 };

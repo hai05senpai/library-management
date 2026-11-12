@@ -45,6 +45,19 @@ interface BooksResponse {
     };
 }
 
+interface BookCopy {
+    copy_id: number;
+    book_id: number;
+    copy_barcode: string;
+    status: "AVAILABLE" | "BORROWED" | "LOST" | "DAMAGED";
+    created_at: string;
+}
+
+interface BookCopiesResponse {
+    success: boolean;
+    message: string;
+    data: BookCopy[];
+}
 interface CreateBookForm {
     isbn: string;
     title: string;
@@ -77,6 +90,12 @@ function Books() {
     const [showDetailModal, setShowDetailModal] = useState(false);
     const [isLoadingDetail, setIsLoadingDetail] = useState(false);
     const [detailError, setDetailError] = useState("");
+
+    const [bookCopies, setBookCopies] = useState<BookCopy[]>([]);
+    const [isLoadingCopies, setIsLoadingCopies] = useState(false);
+    const [copiesError, setCopiesError] = useState("");
+
+    const [isUpdatingCopyId, setIsUpdatingCopyId] = useState<number | null>(null);
 
     const [editingBookId, setEditingBookId] = useState<number | null>(null);
 
@@ -122,18 +141,76 @@ function Books() {
         fetchBooks();
     }, [searchTerm, currentPage, refreshKey]);
 
+    const fetchBookCopies = async (bookId: number) => {
+        try {
+            setIsLoadingCopies(true);
+            setCopiesError("");
+            setBookCopies([]);
+
+            const response = await api.get<BookCopiesResponse>(
+                `/books/${bookId}/copies`
+            );
+
+            setBookCopies(response.data.data);
+        } catch (err: unknown) {
+            console.error("Fetch book copies error:", err);
+            setCopiesError("Không thể tải danh sách bản sao sách.");
+        } finally {
+            setIsLoadingCopies(false);
+        }
+    };
+
+    const handleUpdateCopyStatus = async (
+        copyId: number,
+        status: "AVAILABLE" | "LOST" | "DAMAGED"
+    ) => {
+        try {
+            setIsUpdatingCopyId(copyId);
+
+            await api.put(`/books/copies/${copyId}`, {
+                status
+            });
+
+            // Tải lại danh sách bản sao
+            if (selectedBook) {
+                await fetchBookCopies(selectedBook.book_id);
+
+                // Cập nhật lại số lượng bản sao của đầu sách
+                const response = await api.get<BookDetailResponse>(
+                    `/books/${selectedBook.book_id}`
+                );
+
+                setSelectedBook(response.data.data);
+            }
+
+            // Cập nhật lại danh sách đầu sách bên ngoài modal
+            setRefreshKey((key) => key + 1);
+        } catch (err: unknown) {
+            console.error("Update book copy status error:", err);
+            setCopiesError(
+                "Không thể cập nhật trạng thái bản sao. Vui lòng thử lại."
+            );
+        } finally {
+            setIsUpdatingCopyId(null);
+        }
+    };
+    
     const handleViewBook = async (bookId: number) => {
         try {
             setShowDetailModal(true);
             setIsLoadingDetail(true);
             setDetailError("");
             setSelectedBook(null);
+            setBookCopies([]);
+            setCopiesError("");
 
             const response = await api.get<BookDetailResponse>(
                 `/books/${bookId}`
             );
 
             setSelectedBook(response.data.data);
+
+            await fetchBookCopies(bookId);
         } catch (err: unknown) {
             console.error("Get book detail error:", err);
             setDetailError("Không thể tải thông tin sách. Vui lòng thử lại.");
@@ -491,6 +568,89 @@ function Books() {
                                     <p>
                                         {selectedBook.description || "Chưa có mô tả cho sách này."}
                                     </p>
+                                </div>
+
+                                <div className="books-detail-copies">
+                                    <div className="books-detail-section-header">
+                                        <h3>Danh sách bản sao</h3>
+                                        <span>{bookCopies.length} bản sao</span>
+                                    </div>
+
+                                    {isLoadingCopies ? (
+                                        <div className="books-state">
+                                            Đang tải danh sách bản sao...
+                                        </div>
+                                    ) : copiesError ? (
+                                        <div className="books-state books-error">
+                                            {copiesError}
+                                        </div>
+                                    ) : bookCopies.length === 0 ? (
+                                        <div className="books-state">
+                                            Chưa có bản sao nào cho đầu sách này.
+                                        </div>
+                                    ) : (
+                                        <div className="books-copies-table-scroll">
+                                            <table className="books-copies-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Mã bản sao</th>
+                                                        <th>Trạng thái</th>
+                                                        <th>Ngày tạo</th>
+                                                    </tr>
+                                                </thead>
+
+                                                <tbody>
+                                                    {bookCopies.map((copy) => (
+                                                        <tr key={copy.copy_id}>
+                                                            <td>{copy.copy_barcode}</td>
+
+                                                            <td>
+                                                                {canManageBooks && copy.status !== "BORROWED" ? (
+                                                                    <select
+                                                                        className="books-copy-status-select"
+                                                                        value={copy.status}
+                                                                        disabled={isUpdatingCopyId === copy.copy_id}
+                                                                        onChange={(event) =>
+                                                                            handleUpdateCopyStatus(
+                                                                                copy.copy_id,
+                                                                                event.target.value as "AVAILABLE" | "LOST" | "DAMAGED"
+                                                                            )
+                                                                        }
+                                                                    >
+                                                                        <option value="AVAILABLE">Có thể mượn</option>
+                                                                        <option value="LOST">Đã mất</option>
+                                                                        <option value="DAMAGED">Hư hỏng</option>
+                                                                    </select>
+                                                                ) : (
+                                                                    <span
+                                                                        className={`books-copy-status status-${copy.status.toLowerCase()}`}
+                                                                    >
+                                                                        {copy.status === "AVAILABLE"
+                                                                            ? "Có thể mượn"
+                                                                            : copy.status === "BORROWED"
+                                                                                ? "Đang được mượn"
+                                                                                : copy.status === "LOST"
+                                                                                    ? "Đã mất"
+                                                                                    : "Hư hỏng"}
+                                                                    </span>
+                                                                )}
+
+                                                                {isUpdatingCopyId === copy.copy_id && (
+                                                                    <span className="books-copy-updating">
+                                                                        Đang cập nhật...
+                                                                    </span>
+                                                                )}
+                                                            </td>
+
+                                                            <td>
+                                                                {new Date(copy.created_at).toLocaleDateString("vi-VN")}
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div className="books-detail-footer">

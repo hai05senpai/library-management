@@ -2,7 +2,10 @@ const {
     getBooks: getBooksService,
     getBookById: getBookByIdService,
     createBook: createBookService,
-    updateBook: updateBookService
+    updateBook: updateBookService,
+    getBookCopies: getBookCopiesService,
+    createBookCopy: createBookCopyService,
+    updateBookCopy: updateBookCopyService
 } = require("../services/books.service");
 
 const getBooks = async (req, res) => {
@@ -83,6 +86,179 @@ const getBookById = async (req, res) => {
         return res.status(500).json({
             success: false,
             message: "Failed to retrieve book."
+        });
+    }
+};
+
+const getBookCopies = async (req, res) => {
+    try {
+        const dbPool = req.app.locals.dbPool;
+        const bookId = Number(req.params.id);
+
+        // Validate book ID
+        if (!Number.isInteger(bookId) || bookId < 1) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid book ID."
+            });
+        }
+
+        // Check whether the book exists
+        const book = await getBookByIdService(dbPool, bookId);
+
+        if (!book) {
+            return res.status(404).json({
+                success: false,
+                message: "Book not found."
+            });
+        }
+
+        // Retrieve book copies
+        const copies = await getBookCopiesService(dbPool, bookId);
+
+        return res.status(200).json({
+            success: true,
+            message: "Book copies retrieved successfully.",
+            data: copies
+        });
+    } catch (error) {
+        console.error("Get book copies error:", error.message);
+
+        return res.status(500).json({
+            success: false,
+            message: "Failed to retrieve book copies."
+        });
+    }
+};
+
+const createBookCopy = async (req, res) => {
+    try {
+        const dbPool = req.app.locals.dbPool;
+        const bookId = Number(req.params.id);
+        const { copy_barcode } = req.body;
+
+        // Validate book ID
+        if (!Number.isInteger(bookId) || bookId < 1) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid book ID."
+            });
+        }
+
+        // Validate copy barcode
+        if (
+            typeof copy_barcode !== "string" ||
+            !copy_barcode.trim()
+        ) {
+            return res.status(400).json({
+                success: false,
+                message: "Copy barcode is required."
+            });
+        }
+
+        const normalizedBarcode = copy_barcode.trim();
+
+        if (normalizedBarcode.length > 50) {
+            return res.status(400).json({
+                success: false,
+                message: "Copy barcode must not exceed 50 characters."
+            });
+        }
+
+        // Check whether the book exists
+        const book = await getBookByIdService(dbPool, bookId);
+
+        if (!book) {
+            return res.status(404).json({
+                success: false,
+                message: "Book not found."
+            });
+        }
+
+        // Create book copy
+        const copy = await createBookCopyService(
+            dbPool,
+            bookId,
+            normalizedBarcode
+        );
+
+        return res.status(201).json({
+            success: true,
+            message: "Book copy created successfully.",
+            data: copy
+        });
+    } catch (error) {
+        console.error("Create book copy error:", error.message);
+
+        // Handle duplicate barcode
+        if (error.number === 2601 || error.number === 2627) {
+            return res.status(409).json({
+                success: false,
+                message: "Copy barcode already exists."
+            });
+        }
+
+        return res.status(500).json({
+            success: false,
+            message: "Failed to create book copy."
+        });
+    }
+};
+
+const updateBookCopy = async (req, res) => {
+    try {
+        const copyId = Number(req.params.copyId);
+        const { status } = req.body;
+
+        // Validate copy ID
+        if (!Number.isInteger(copyId) || copyId <= 0) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid copy ID."
+            });
+        }
+
+        // Only allow these statuses
+        const allowedStatuses = ["AVAILABLE", "LOST", "DAMAGED"];
+
+        if (!allowedStatuses.includes(status)) {
+            return res.status(400).json({
+                success: false,
+                message: "Status must be AVAILABLE, LOST, or DAMAGED."
+            });
+        }
+
+        const result = await updateBookCopyService(
+            req.app.locals.dbPool,
+            copyId,
+            status
+        );
+
+        if (result.type === "NOT_FOUND") {
+            return res.status(404).json({
+                success: false,
+                message: "Book copy not found."
+            });
+        }
+
+        if (result.type === "BORROWED") {
+            return res.status(409).json({
+                success: false,
+                message: "Cannot update the status of a copy with an active loan."
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "Book copy status updated successfully.",
+            data: result.copy
+        });
+    } catch (error) {
+        console.error("Update book copy error:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Failed to update book copy status."
         });
     }
 };
@@ -261,6 +437,9 @@ const updateBook = async (req, res) => {
 module.exports = {
     getBooks,
     getBookById,
+    getBookCopies,
     createBook,
-    updateBook
+    updateBook,
+    createBookCopy,
+    updateBookCopy
 };

@@ -1468,3 +1468,108 @@ footer p {
 .books-action-button:hover {
     background: #dbeafe;
 }
+
+.books-detail-copies {
+    margin-top: 24px;
+}
+
+.books-detail-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.books-detail-section-header h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.books-detail-section-header span {
+    font-size: 13px;
+    color: #64748b;
+}
+
+.books-copies-table-scroll {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.books-copies-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.books-copies-table th,
+.books-copies-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #e2e8f0;
+    white-space: nowrap;
+}
+
+.books-copies-table th {
+    background: #f8fafc;
+    color: #475569;
+    font-weight: 600;
+}
+
+.books-copy-status {
+    display: inline-block;
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.status-available {
+    color: #15803d;
+    background: #dcfce7;
+}
+
+.status-borrowed {
+    color: #1d4ed8;
+    background: #dbeafe;
+}
+
+.status-lost {
+    color: #b91c1c;
+    background: #fee2e2;
+}
+
+.status-damaged {
+    color: #c2410c;
+    background: #ffedd5;
+}
+
+.books-copy-status-select {
+    padding: 7px 10px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    background: #ffffff;
+    color: #334155;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    outline: none;
+}
+
+.books-copy-status-select:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.12);
+}
+
+.books-copy-status-select:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.books-copy-updating {
+    display: block;
+    margin-top: 5px;
+    color: #64748b;
+    font-size: 12px;
+}

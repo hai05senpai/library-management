@@ -97,6 +97,11 @@ function Books() {
 
     const [isUpdatingCopyId, setIsUpdatingCopyId] = useState<number | null>(null);
 
+    const [copyBarcode, setCopyBarcode] = useState("");
+    const [isCreatingCopy, setIsCreatingCopy] = useState(false);
+    const [createCopyError, setCreateCopyError] = useState("");
+    const [createCopySuccess, setCreateCopySuccess] = useState("");
+
     const [editingBookId, setEditingBookId] = useState<number | null>(null);
 
     const [formData, setFormData] = useState<CreateBookForm>({
@@ -157,6 +162,71 @@ function Books() {
             setCopiesError("Không thể tải danh sách bản sao sách.");
         } finally {
             setIsLoadingCopies(false);
+        }
+    };
+
+    const handleCreateBookCopy = async (
+        event: FormEvent<HTMLFormElement>
+    ) => {
+        event.preventDefault();
+
+        if (!selectedBook) return;
+
+        const barcode = copyBarcode.trim();
+
+        if (!barcode) {
+            setCreateCopyError("Vui lòng nhập mã bản sao.");
+            return;
+        }
+
+        try {
+            setIsCreatingCopy(true);
+            setCreateCopyError("");
+            setCreateCopySuccess("");
+
+            await api.post(`/books/${selectedBook.book_id}/copies`, {
+                copy_barcode: barcode
+            });
+
+            setCopyBarcode("");
+            setCreateCopySuccess("Thêm bản sao thành công.");
+
+            // Tải lại danh sách bản sao
+            await fetchBookCopies(selectedBook.book_id);
+
+            // Cập nhật số lượng bản sao của đầu sách
+            const response = await api.get<BookDetailResponse>(
+                `/books/${selectedBook.book_id}`
+            );
+
+            setSelectedBook(response.data.data);
+
+            // Cập nhật danh sách sách bên ngoài modal
+            setRefreshKey((key) => key + 1);
+        } catch (err: unknown) {
+            console.error("Create book copy error:", err);
+
+            if (
+                typeof err === "object" &&
+                err !== null &&
+                "response" in err
+            ) {
+                const axiosError = err as {
+                    response?: {
+                        status?: number;
+                    };
+                };
+
+                if (axiosError.response?.status === 409) {
+                    setCreateCopyError("Mã bản sao đã tồn tại.");
+                } else {
+                    setCreateCopyError("Không thể thêm bản sao. Vui lòng thử lại.");
+                }
+            } else {
+                setCreateCopyError("Không thể thêm bản sao. Vui lòng thử lại.");
+            }
+        } finally {
+            setIsCreatingCopy(false);
         }
     };
 
@@ -569,6 +639,61 @@ function Books() {
                                         {selectedBook.description || "Chưa có mô tả cho sách này."}
                                     </p>
                                 </div>
+
+                                {canManageBooks && (
+                                    <div className="books-add-copy-section">
+                                        <h3>Thêm bản sao sách</h3>
+
+                                        <form
+                                            className="books-add-copy-form"
+                                            onSubmit={handleCreateBookCopy}
+                                        >
+                                            <div className="books-add-copy-input">
+                                                <label htmlFor="copy-barcode">
+                                                    Mã bản sao
+                                                </label>
+
+                                                <input
+                                                    id="copy-barcode"
+                                                    type="text"
+                                                    value={copyBarcode}
+                                                    onChange={(event) => {
+                                                        setCopyBarcode(event.target.value);
+                                                        setCreateCopyError("");
+                                                        setCreateCopySuccess("");
+                                                    }}
+                                                    placeholder="Ví dụ: COPY0006"
+                                                    maxLength={50}
+                                                    disabled={isCreatingCopy}
+                                                />
+                                            </div>
+
+                                            <button
+                                                type="submit"
+                                                className="books-add-copy-button"
+                                                disabled={isCreatingCopy}
+                                            >
+                                                {isCreatingCopy ? "Đang thêm..." : "+ Thêm bản sao"}
+                                            </button>
+                                        </form>
+
+                                        {createCopyError && (
+                                            <p className="books-add-copy-error">
+                                                {createCopyError}
+                                            </p>
+                                        )}
+
+                                        {createCopySuccess && (
+                                            <p className="books-add-copy-success">
+                                                {createCopySuccess}
+                                            </p>
+                                        )}
+
+                                        <p className="books-add-copy-note">
+                                            Bản sao mới sẽ được tạo với trạng thái Có thể mượn.
+                                        </p>
+                                    </div>
+                                )}
 
                                 <div className="books-detail-copies">
                                     <div className="books-detail-section-header">

@@ -1573,3 +1573,104 @@ footer p {
     color: #64748b;
     font-size: 12px;
 }
+
+.books-add-copy-section {
+    margin-top: 24px;
+    padding: 16px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+}
+
+.books-add-copy-section h3 {
+    margin: 0 0 14px;
+    font-size: 16px;
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.books-add-copy-form {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+}
+
+.books-add-copy-input {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.books-add-copy-input label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #475569;
+}
+
+.books-add-copy-input input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-size: 14px;
+    outline: none;
+}
+
+.books-add-copy-input input:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.12);
+}
+
+.books-add-copy-button {
+    padding: 10px 16px;
+    border: none;
+    border-radius: 6px;
+    background: #2563eb;
+    color: white;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.books-add-copy-button:hover:not(:disabled) {
+    background: #1d4ed8;
+}
+
+.books-add-copy-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.books-add-copy-error,
+.books-add-copy-success {
+    margin: 10px 0 0;
+    font-size: 13px;
+}
+
+.books-add-copy-error {
+    color: #dc2626;
+}
+
+.books-add-copy-success {
+    color: #15803d;
+}
+
+.books-add-copy-note {
+    margin: 10px 0 0;
+    color: #64748b;
+    font-size: 12px;
+}
+
+@media (max-width: 520px) {
+    .books-add-copy-form {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .books-add-copy-button {
+        width: 100%;
+    }
+}
